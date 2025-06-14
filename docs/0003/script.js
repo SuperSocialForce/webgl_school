@@ -23,18 +23,18 @@ class ThreeApp {
     lookAt: new THREE.Vector3(0.0, 0.0, 0.0),
   };
   static RENDERER_PARAM = {
-    clearColor: 0xffffff,
+    clearColor: 0x222222,
     width: window.innerWidth,
     height: window.innerHeight,
   };
   static DIRECTIONAL_LIGHT_PARAM = {
     color: 0xffffff,
-    intensity: 1.0,
+    intensity: 3.0,
     position: new THREE.Vector3(1.0, 1.0, 1.0),
   };
   static AMBIENT_LIGHT_PARAM = {
     color: 0xffffff,
-    intensity: 0.3,
+    intensity: 0.2,
   };
   static MATERIAL_PARAM = {
     color: 0xffffff,
@@ -100,15 +100,7 @@ class ThreeApp {
         Math.cos(latitude),
         -Math.sin(latitude) * Math.cos(longitude)
       );
-      this.moon.position.copy(moon_unit.clone().multiplyScalar(this.earthRadius));
-      const currX = new THREE.Vector3();
-      const currY = new THREE.Vector3();
-      const currZ = new THREE.Vector3();
-      this.coords.matrixWorld.extractBasis(currX, currY, currZ);
-      const targetZ = new THREE.Vector3().crossVectors(currX, moon_unit).normalize();
-      const crossZ = new THREE.Vector3().crossVectors(currZ, targetZ);
-      const theta = Math.asin(crossZ.dot(currX));
-      this.coords.rotateX(theta);
+      this.moon.position.copy(moon_unit.clone().multiplyScalar(this.earthRadius*1.1));
     }, false);
 
 
@@ -195,18 +187,25 @@ class ThreeApp {
 
     this.moon.scale.setScalar(ThreeApp.MOON_SCALE);
     this.scene.add(this.moon);
-    this.moon.position.set(0.0, 0.0, this.earthRadius);
+    this.moon.position.set(0.0, 0.0, this.earthRadius*1.1);
 
 
     this.coords = new THREE.Group();
     this.scene.add(this.coords);
 
 
-    this.coneGeometry = new THREE.ConeGeometry(0.1, 0.25, 32);
-    this.satelliteMaterial = new THREE.MeshPhongMaterial({ color: 0xff00dd });
-    this.satellite = new THREE.Mesh(this.coneGeometry, this.satelliteMaterial);
+    // this.coneGeometry = new THREE.ConeGeometry(0.1, 0.5, 32);
+    this.satelliteMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+    this.satellite = new THREE.Group();
+    this.satellite.add(new THREE.Mesh(new THREE.CapsuleGeometry(0.04, 0.35, 32), this.satelliteMaterial));
+    this.tailwing = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 3), this.satelliteMaterial);
+    this.satellite.add(this.tailwing);
+    this.satellite.scale.setScalar(2);
+    this.tailwing.rotateZ(Math.PI / 2);
+    this.tailwing.rotateY(Math.PI / 2);
+    // this.satellite = new THREE.Mesh(this.coneGeometry, this.satelliteMaterial);
     this.coords.add(this.satellite);
-    this.satellite.position.set(this.earthRadius * 1.05, 0.0, 0.0);
+    this.satellite.position.set(this.earthRadius * 1.1, 0.0, 0.0);
     this.satellite.velocity = new THREE.Vector3(0.0, 0.0, 0.0);
 
 
@@ -228,23 +227,28 @@ class ThreeApp {
 
     requestAnimationFrame(this.render);
 
-
     this.controls.update();
 
 
-
-    const posDelta = new THREE.Vector3().subVectors(this.moon.position, this.satellite.position);
-    const targetVelocity = posDelta.clone().multiplyScalar(0.05);
-    const velDelta = targetVelocity.clone().sub(this.satellite.velocity);
-    this.satellite.velocity.add(velDelta.multiplyScalar(0.02));
-
-
     const moon_unit = this.moon.position.clone().normalize();
-    const coordsX = new THREE.Vector3()
-    this.coords.matrixWorld.extractBasis(coordsX, new THREE.Vector3(), new THREE.Vector3());
-    const theta = Math.acos(moon_unit.dot(coordsX));
-    if (theta > 0.01) {
-      this.coords.rotateZ(0.01);
+    const currX = new THREE.Vector3();
+    const currY = new THREE.Vector3();
+    const currZ = new THREE.Vector3();
+    this.coords.matrixWorld.extractBasis(currX, currY, currZ);
+    const targetZ = new THREE.Vector3().crossVectors(currX, moon_unit).normalize();
+    const crossZ = new THREE.Vector3().crossVectors(currZ, targetZ);
+    const theta = Math.asin(crossZ.dot(currX));
+
+    const roll_target = - theta;
+    const roll_delta = roll_target - this.satellite.rotation.y;
+    this.satellite.rotateY(Math.sign(roll_delta)*Math.min(Math.abs(roll_delta), 0.03));
+    const azimuth = Math.max(Math.min(0.01, theta), -0.01);
+    this.coords.rotateX(azimuth);
+    // this.satellite.setRotationFromAxisAngle(new THREE.Vector3(0,-1,0), azimuth*20.0);
+
+    const phi = Math.acos(moon_unit.dot(currX));
+    if (phi > 0.01) {
+      this.coords.rotateZ(0.003);
 
     }
 
